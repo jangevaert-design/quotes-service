@@ -13,6 +13,8 @@ public interface QuoteRepository extends JpaRepository<Quote, Long> {
 
   Iterable<Quote> getAllByTagsContainingOrderByTextAsc(Tag tag);
 
+  Iterable<Quote> getAllByTextContainingOrderByTextAsc(String filter);
+
 }
 
 
