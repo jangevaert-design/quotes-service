@@ -7,8 +7,10 @@ import edu.cnm.deepdive.quotes.service.SourceRepository;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.server.ExposesResourceFor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/sources")
+@ExposesResourceFor(Source.class)
 public class SourceController {
 
   private final SourceRepository sourceRepository;
@@ -40,9 +43,9 @@ public class SourceController {
 
   @PostMapping(
       consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-  @ResponseStatus(HttpStatus.CREATED)
-  public Source post(@RequestBody Source source) {
-    return sourceRepository.save(source);
+  public ResponseEntity<Source> post(@RequestBody Source source) {
+    sourceRepository.save(source);
+    return ResponseEntity.created(source.getHref()).body(source);
   }
 
   @GetMapping(value = "/{id:\\d+}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -53,12 +56,12 @@ public class SourceController {
   @GetMapping(value = "/{id:\\d+}/quotes", produces = MediaType.APPLICATION_JSON_VALUE)
   public Iterable<Quote> getQuotes(@PathVariable long id) {
     return sourceRepository.findById(id)
-        .map((source) -> quoteRepository.getAllBySourceOrderByTextAsc(source))
-        .get();
+        .map(quoteRepository::getAllBySourceOrderByTextAsc)
+        .orElseThrow(NoSuchElementException::new);
   }
 
-  @PutMapping(value = "/{id:\\d+}", consumes = MediaType.APPLICATION_JSON_VALUE,
-      produces = MediaType.APPLICATION_JSON_VALUE)
+  @PutMapping(value = "/{id:\\d+}",
+      consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
   public Source put(@PathVariable long id, @RequestBody Source source) {
     Source existingSource = get(id);
     if (source.getName() != null) {
@@ -74,6 +77,7 @@ public class SourceController {
         .map((source) -> {
           List<Quote> quotes = source.getQuotes();
           quotes.forEach((quote) -> quote.setSource(null));
+          quoteRepository.saveAll(quotes);
           return source;
         })
         .map((source) -> {
@@ -84,4 +88,3 @@ public class SourceController {
   }
 
 }
-
